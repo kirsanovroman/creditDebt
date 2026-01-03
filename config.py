@@ -1,0 +1,42 @@
+"""
+Конфигурация приложения.
+Загружает настройки из переменных окружения.
+"""
+import os
+from typing import Optional
+from dotenv import load_dotenv
+
+# Загружаем переменные окружения из .env файла
+load_dotenv()
+
+
+class Config:
+    """Конфигурация приложения."""
+    
+    # Telegram Bot
+    BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
+    
+    # Database
+    DB_HOST: str = os.getenv("DB_HOST", "localhost")
+    DB_PORT: int = int(os.getenv("DB_PORT", "5432"))
+    DB_NAME: str = os.getenv("DB_NAME", "debt_bot")
+    DB_USER: str = os.getenv("DB_USER", "postgres")
+    DB_PASSWORD: str = os.getenv("DB_PASSWORD", "")
+    
+    # Application
+    INVITE_TOKEN_EXPIRY_DAYS: int = int(os.getenv("INVITE_TOKEN_EXPIRY_DAYS", "7"))
+    
+    @classmethod
+    def validate(cls) -> None:
+        """Проверяет, что все обязательные настройки заданы."""
+        if not cls.BOT_TOKEN:
+            raise ValueError("BOT_TOKEN не задан в переменных окружения")
+        if not cls.DB_NAME:
+            raise ValueError("DB_NAME не задан в переменных окружения")
+        if not cls.DB_USER:
+            raise ValueError("DB_USER не задан в переменных окружения")
+
+
+# Создаём экземпляр конфигурации
+config = Config()
+
