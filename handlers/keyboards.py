@@ -20,15 +20,29 @@ def get_cancel_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def get_debt_list_keyboard(debt_id: int, is_debtor: bool) -> InlineKeyboardMarkup:
+def get_debt_list_keyboard(debt_id: int, is_debtor: bool, debt_name: str = None) -> InlineKeyboardMarkup:
     """
     Возвращает клавиатуру для элемента списка долгов.
     
     Args:
         debt_id: ID долга
         is_debtor: True, если пользователь является должником
+        debt_name: Название долга (опционально, для отображения в кнопке)
     """
-    keyboard = [[InlineKeyboardButton("👁️ Просмотр", callback_data=f"debt:{debt_id}")]]
+    # Формируем текст кнопки с названием долга
+    if debt_name:
+        # Ограничиваем длину названия для кнопки (Telegram ограничение ~64 символа)
+        # Оставляем место для эмодзи и текста "Просмотр"
+        max_name_length = 40
+        if len(debt_name) > max_name_length:
+            debt_name_display = debt_name[:max_name_length - 3] + "..."
+        else:
+            debt_name_display = debt_name
+        button_text = f"👁️ {debt_name_display}"
+    else:
+        button_text = "👁️ Просмотр"
+    
+    keyboard = [[InlineKeyboardButton(button_text, callback_data=f"debt:{debt_id}")]]
     return InlineKeyboardMarkup(keyboard)
 
 

@@ -48,7 +48,7 @@ async def debts_list_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
             is_debtor = debt.debtor_user_id == db_user.id
             text += format_debt_list_item(debt, i, is_debtor)
             keyboard_buttons.append(
-                get_debt_list_keyboard(debt.id, is_debtor).inline_keyboard[0]
+                get_debt_list_keyboard(debt.id, is_debtor, debt.name).inline_keyboard[0]
             )
         
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup

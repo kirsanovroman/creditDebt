@@ -21,6 +21,7 @@ class DebtService:
         self,
         debtor_user_id: int,
         creditor_user_id: Optional[int],
+        name: str,
         principal_amount: Decimal,
         currency: str = 'RUB',
         monthly_payment: Optional[Decimal] = None,
@@ -33,6 +34,7 @@ class DebtService:
         Args:
             debtor_user_id: ID должника
             creditor_user_id: ID кредитора (опционально)
+            name: Название долга
             principal_amount: Основная сумма долга
             currency: Валюта (по умолчанию 'RUB')
             monthly_payment: Ежемесячный платёж (опционально)
@@ -46,6 +48,12 @@ class DebtService:
             ValueError: Если параметры невалидны
         """
         # Валидация
+        if not name or not name.strip():
+            raise ValueError("Название долга не может быть пустым")
+        
+        if len(name.strip()) > 255:
+            raise ValueError("Название долга не может быть длиннее 255 символов")
+        
         if principal_amount <= 0:
             raise ValueError("Сумма долга должна быть больше нуля")
         
@@ -68,6 +76,7 @@ class DebtService:
                 debt = await self.debt_repo.create(
                     debtor_user_id=debtor_user_id,
                     creditor_user_id=creditor_user_id,
+                    name=name.strip(),
                     principal_amount=principal_amount,
                     currency=currency,
                     monthly_payment=monthly_payment,
@@ -78,6 +87,7 @@ class DebtService:
                 # Логируем создание
                 after = {
                     'id': debt.id,
+                    'name': debt.name,
                     'debtor_user_id': debt.debtor_user_id,
                     'creditor_user_id': debt.creditor_user_id,
                     'principal_amount': str(debt.principal_amount),

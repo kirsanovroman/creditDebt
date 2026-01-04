@@ -11,9 +11,10 @@ from services.debt_service import DebtService
 from repositories.user_repository import UserRepository
 
 # Импортируем константы состояний из main
-DEBT_AMOUNT = 0
-DEBT_MONTHLY_PAYMENT = 1
-DEBT_DUE_DAY = 2
+DEBT_NAME = 0
+DEBT_AMOUNT = 1
+DEBT_MONTHLY_PAYMENT = 2
+DEBT_DUE_DAY = 3
 
 
 async def debt_create_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -23,12 +24,12 @@ async def debt_create_start(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await query.answer()
     
     # Инициализируем состояние
-    context.user_data['debt_create_step'] = 'amount'
+    context.user_data['debt_create_step'] = 'name'
     context.user_data['debt_create'] = {}
     
     text = (
         "➕ <b>Создание долга</b>\n\n"
-        "Введите сумму долга (например: 10000 или 10000.50):"
+        "Введите название долга (например: \"Кредит в банке\", \"Долг другу\"):"
     )
     keyboard = get_cancel_keyboard()
     
@@ -36,6 +37,36 @@ async def debt_create_start(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
     elif update.message:
         await update.message.reply_text(text, reply_markup=keyboard, parse_mode='HTML')
+    
+    return DEBT_NAME
+
+
+async def debt_create_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Обрабатывает ввод названия долга."""
+    text = update.message.text if update.message else ""
+    
+    name = text.strip()
+    if not name:
+        await update.message.reply_text(
+            "❌ Название долга не может быть пустым. Введите название:",
+            reply_markup=get_cancel_keyboard()
+        )
+        return DEBT_NAME
+    
+    if len(name) > 255:
+        await update.message.reply_text(
+            "❌ Название долга слишком длинное (максимум 255 символов). Введите более короткое название:",
+            reply_markup=get_cancel_keyboard()
+        )
+        return DEBT_NAME
+    
+    context.user_data['debt_create']['name'] = name
+    context.user_data['debt_create_step'] = 'amount'
+    
+    await update.message.reply_text(
+        "Введите сумму долга (например: 10000 или 10000.50):",
+        reply_markup=get_cancel_keyboard()
+    )
     
     return DEBT_AMOUNT
 
@@ -127,6 +158,14 @@ async def debt_create_due_day(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     debt_data = context.user_data.get('debt_create', {})
     
+    name = debt_data.get('name', '').strip()
+    if not name:
+        await update.message.reply_text(
+            "❌ Ошибка: название долга не задано. Начните заново.",
+            reply_markup=get_cancel_keyboard()
+        )
+        return -1
+    
     principal_amount = Decimal(str(debt_data.get('principal_amount', 0)))
     monthly_payment = Decimal(str(debt_data['monthly_payment'])) if debt_data.get('monthly_payment') else None
     
@@ -136,6 +175,7 @@ async def debt_create_due_day(update: Update, context: ContextTypes.DEFAULT_TYPE
         debt = await debt_service.create_debt(
             debtor_user_id=db_user.id,
             creditor_user_id=None,  # В MVP можно добавить позже
+            name=name,
             principal_amount=principal_amount,
             currency='RUB',
             monthly_payment=monthly_payment,
@@ -153,6 +193,7 @@ async def debt_create_due_day(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         text = (
             f"✅ Долг создан!\n\n"
+            f"<b>{debt.name}</b>\n"
             f"ID: {debt.id}\n"
             f"Сумма: {debt.principal_amount:,.2f} {debt.currency}\n"
             f"Ежемесячный платёж: {monthly_payment_text}\n"
@@ -161,7 +202,8 @@ async def debt_create_due_day(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         await update.message.reply_text(
             text,
-            reply_markup=get_main_menu_keyboard()
+            reply_markup=get_main_menu_keyboard(),
+            parse_mode='HTML'
         )
         
         return -1

@@ -36,9 +36,14 @@ from handlers.payments import (
 )
 from handlers.create_debt import (
     debt_create_start,
+    debt_create_name,
     debt_create_amount,
     debt_create_monthly_payment,
-    debt_create_due_day
+    debt_create_due_day,
+    DEBT_NAME,
+    DEBT_AMOUNT,
+    DEBT_MONTHLY_PAYMENT,
+    DEBT_DUE_DAY
 )
 from handlers.edit_debt import (
     debt_edit_start,
@@ -55,7 +60,7 @@ from handlers.invites import (
 
 # Состояния для ConversationHandler
 PAYMENT_AMOUNT, PAYMENT_DATE = range(2)
-DEBT_AMOUNT, DEBT_MONTHLY_PAYMENT, DEBT_DUE_DAY = range(3)
+# DEBT_NAME, DEBT_AMOUNT, DEBT_MONTHLY_PAYMENT, DEBT_DUE_DAY импортируются из handlers.create_debt
 # EDIT_MONTHLY_PAYMENT, EDIT_DUE_DAY импортируются из handlers.edit_debt
 
 
@@ -161,6 +166,7 @@ def main() -> None:
     debt_create_conv = ConversationHandler(
         entry_points=[CallbackQueryHandler(debt_create_start, pattern="^debt:create$")],
         states={
+            DEBT_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, debt_create_name)],
             DEBT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, debt_create_amount)],
             DEBT_MONTHLY_PAYMENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, debt_create_monthly_payment)],
             DEBT_DUE_DAY: [MessageHandler(filters.TEXT & ~filters.COMMAND, debt_create_due_day)],

@@ -18,6 +18,7 @@ class DebtRepository(BaseRepository):
         self,
         debtor_user_id: int,
         creditor_user_id: Optional[int],
+        name: str,
         principal_amount: Decimal,
         currency: str,
         monthly_payment: Optional[Decimal],
@@ -30,6 +31,7 @@ class DebtRepository(BaseRepository):
         Args:
             debtor_user_id: ID должника
             creditor_user_id: ID кредитора (опционально)
+            name: Название долга
             principal_amount: Основная сумма долга
             currency: Валюта
             monthly_payment: Ежемесячный платёж (опционально)
@@ -48,16 +50,17 @@ class DebtRepository(BaseRepository):
             row = await conn.fetchrow(
                 """
                 INSERT INTO debts (
-                    debtor_user_id, creditor_user_id, principal_amount, currency,
+                    debtor_user_id, creditor_user_id, name, principal_amount, currency,
                     monthly_payment, due_day, status, created_at, updated_at
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, 'active', $7, $7)
-                RETURNING id, debtor_user_id, creditor_user_id, principal_amount,
+                VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $8)
+                RETURNING id, debtor_user_id, creditor_user_id, name, principal_amount,
                           currency, monthly_payment, due_day, status, closed_at,
                           close_note, created_at, updated_at
                 """,
                 debtor_user_id,
                 creditor_user_id,
+                name,
                 principal_amount,
                 currency,
                 monthly_payment,
@@ -95,7 +98,7 @@ class DebtRepository(BaseRepository):
         try:
             row = await conn.fetchrow(
                 """
-                SELECT id, debtor_user_id, creditor_user_id, principal_amount,
+                SELECT id, debtor_user_id, creditor_user_id, name, principal_amount,
                        currency, monthly_payment, due_day, status, closed_at,
                        close_note, created_at, updated_at
                 FROM debts
@@ -136,7 +139,7 @@ class DebtRepository(BaseRepository):
         try:
             rows = await conn.fetch(
                 """
-                SELECT id, debtor_user_id, creditor_user_id, principal_amount,
+                SELECT id, debtor_user_id, creditor_user_id, name, principal_amount,
                        currency, monthly_payment, due_day, status, closed_at,
                        close_note, created_at, updated_at
                 FROM debts
@@ -176,7 +179,7 @@ class DebtRepository(BaseRepository):
         try:
             rows = await conn.fetch(
                 """
-                SELECT id, debtor_user_id, creditor_user_id, principal_amount,
+                SELECT id, debtor_user_id, creditor_user_id, name, principal_amount,
                        currency, monthly_payment, due_day, status, closed_at,
                        close_note, created_at, updated_at
                 FROM debts
@@ -250,7 +253,7 @@ class DebtRepository(BaseRepository):
                 UPDATE debts
                 SET {', '.join(updates)}, updated_at = NOW()
                 WHERE id = ${param_num}
-                RETURNING id, debtor_user_id, creditor_user_id, principal_amount,
+                RETURNING id, debtor_user_id, creditor_user_id, name, principal_amount,
                           currency, monthly_payment, due_day, status, closed_at,
                           close_note, created_at, updated_at
             """
@@ -335,7 +338,7 @@ class DebtRepository(BaseRepository):
                 UPDATE debts
                 SET status = 'closed', closed_at = $1, close_note = $2, updated_at = $1
                 WHERE id = $3 AND status = 'active'
-                RETURNING id, debtor_user_id, creditor_user_id, principal_amount,
+                RETURNING id, debtor_user_id, creditor_user_id, name, principal_amount,
                           currency, monthly_payment, due_day, status, closed_at,
                           close_note, created_at, updated_at
                 """,

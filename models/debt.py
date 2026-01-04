@@ -13,6 +13,7 @@ class Debt:
     id: int
     debtor_user_id: int
     creditor_user_id: Optional[int]
+    name: str  # Название долга
     principal_amount: Decimal
     currency: str
     monthly_payment: Optional[Decimal]
@@ -30,6 +31,7 @@ class Debt:
             id=row['id'],
             debtor_user_id=row['debtor_user_id'],
             creditor_user_id=row['creditor_user_id'],
+            name=row.get('name', f"Долг #{row['id']}"),  # Для обратной совместимости
             principal_amount=row['principal_amount'],
             currency=row['currency'],
             monthly_payment=row['monthly_payment'],
