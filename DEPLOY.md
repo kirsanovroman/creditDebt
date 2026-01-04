@@ -17,7 +17,8 @@
    - Сохраните полученный токен
 
 2. **Настройте PostgreSQL:**
-   - Установите PostgreSQL (см. [SETUP_DB.md](SETUP_DB.md))
+   - Для локальной разработки: см. [SETUP_DB.md](SETUP_DB.md)
+   - Для VPS сервера: см. [VPS_DB_SETUP.md](VPS_DB_SETUP.md)
    - Создайте базу данных: `createdb debt_bot`
    - Настройте пользователя и права доступа
 
@@ -70,6 +71,49 @@ DB_NAME=debt_bot
 DB_USER=postgres
 DB_PASSWORD=your_db_password
 INVITE_TOKEN_EXPIRY_DAYS=7
+```
+
+**Где взять пароль для DB_PASSWORD?**
+
+Пароль зависит от способа установки PostgreSQL:
+
+1. **Официальный установщик PostgreSQL** (EnterpriseDB):
+   - Пароль задаётся **при установке PostgreSQL**
+   - Это тот пароль, который вы указали для пользователя `postgres` во время установки
+   - Если забыли пароль, можно сбросить его (см. ниже)
+
+2. **Postgres.app (macOS)**:
+   - Обычно пароль **не требуется** (оставьте поле пустым)
+   - Используется ваше системное имя пользователя без пароля
+   - `DB_USER` должен быть вашим системным именем пользователя (проверьте: `whoami`)
+
+3. **Homebrew**:
+   - Обычно пароль **не требуется** (оставьте поле пустым)
+   - Используется ваш системный пользователь без пароля
+   - `DB_USER` должен быть вашим системным именем пользователя
+
+4. **Отдельный пользователь** (если создавали):
+   - Пароль, который вы указали при создании пользователя:
+   ```sql
+   CREATE USER debt_bot_user WITH PASSWORD 'your_password_here';
+   ```
+   - В этом случае `DB_USER=debt_bot_user` и `DB_PASSWORD=your_password_here`
+
+**Если забыли пароль пользователя `postgres`:**
+
+На Linux/Ubuntu можно сбросить пароль:
+```bash
+# Переключитесь на пользователя postgres
+sudo -u postgres psql
+
+# В psql выполните:
+ALTER USER postgres WITH PASSWORD 'новый_пароль';
+\q
+```
+
+Или через командную строку:
+```bash
+sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'новый_пароль';"
 ```
 
 ### 4. Настройка базы данных

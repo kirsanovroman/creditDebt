@@ -3,11 +3,15 @@
 Загружает настройки из переменных окружения.
 """
 import os
+from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
 
+# Определяем путь к .env файлу (в директории проекта)
+env_path = Path(__file__).parent / '.env'
+
 # Загружаем переменные окружения из .env файла
-load_dotenv()
+load_dotenv(dotenv_path=env_path)
 
 
 class Config:
