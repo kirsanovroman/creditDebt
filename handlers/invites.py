@@ -51,7 +51,7 @@ async def invite_create_callback(update: Update, context: ContextTypes.DEFAULT_T
             f"✅ Приглашение создано!\n\n"
             f"Ссылка для приглашения:\n"
             f"{invite_link}\n\n"
-            f"Токен действителен до {invite.expires_at.strftime('%d.%m.%Y %H:%M')}"
+            f"Приглашение действует бессрочно."
         )
         
         if query and query.message:
