@@ -7,7 +7,6 @@ from datetime import timezone
 from uuid import UUID, uuid4
 import asyncpg
 from database import Database
-from config import config
 from models.invite import Invite
 from repositories.debt_repository import DebtRepository
 from repositories.invite_repository import InviteRepository
@@ -60,8 +59,9 @@ class InviteService:
         # Генерируем токен
         token = uuid4()
         
-        # Вычисляем срок действия
-        expires_at = datetime.now(timezone.utc) + timedelta(days=config.INVITE_TOKEN_EXPIRY_DAYS)
+        # Устанавливаем срок действия на очень далёкое будущее (практически бесконечный)
+        # Используем дату через 100 лет для совместимости с БД (NOT NULL constraint)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=36500)  # ~100 лет
         
         # Создаём приглашение в транзакции с аудитом
         pool = await Database.get_pool()
@@ -110,20 +110,20 @@ class InviteService:
             user_id: ID пользователя, принимающего приглашение
         
         Raises:
-            ValueError: Если токен невалиден, истёк, использован, или долг не найден
+            ValueError: Если токен невалиден, использован, или долг не найден
             PermissionError: Если пользователь уже является кредитором или должником
+        
+        Note:
+            Срок действия приглашения не проверяется - приглашения действуют бессрочно.
         """
         # Получаем приглашение
         invite = await self.invite_repo.get_by_token(token)
         if invite is None:
             raise ValueError("Приглашение не найдено")
         
-        # Проверяем валидность токена
-        if not invite.is_valid():
-            if invite.is_used():
-                raise ValueError("Приглашение уже использовано")
-            if invite.is_expired():
-                raise ValueError("Срок действия приглашения истёк")
+        # Проверяем валидность токена (только проверка на использование, срок действия не проверяем)
+        if invite.is_used():
+            raise ValueError("Приглашение уже использовано")
         
         # Получаем долг
         debt = await self.debt_repo.get_by_id(invite.debt_id)
