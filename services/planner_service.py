@@ -86,7 +86,7 @@ class PlannerService:
             current_balance: Текущий баланс (опционально, будет рассчитан, если не указан)
         
         Returns:
-            Список элементов плана погашения (до 6 платежей)
+            Список элементов плана погашения
         """
         # Если нет monthly_payment или due_day, план пустой
         if debt.monthly_payment is None or debt.due_day is None:
@@ -110,9 +110,9 @@ class PlannerService:
         remaining_balance = current_balance
         monthly_payment = debt.monthly_payment
         due_day = debt.due_day
-        max_payments = 6
+        max_payments = 100  # Достаточно большой лимит для генерации плана
         
-        # Генерируем до 6 платежей
+        # Генерируем план погашения
         for _ in range(max_payments):
             if remaining_balance <= 0:
                 break

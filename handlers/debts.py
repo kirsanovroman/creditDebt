@@ -107,9 +107,22 @@ async def debt_detail_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     planner_service = PlannerService()
     plan_items = await planner_service.calculate_payment_plan(debt, balance)
     
-    # Форматируем текст
-    text = await format_debt_info(debt, balance)
-    text += "\n" + await format_payment_plan(plan_items)
+    # Форматируем информацию о долге
+    debt_info = await format_debt_info(debt, balance)
+    
+    # Вычисляем доступную длину для плана
+    # Telegram лимит: 4096 символов
+    # Запас: 100 символов (на всякий случай)
+    # Разделитель: 1 символ (\n)
+    TELEGRAM_MESSAGE_LIMIT = 4096
+    SAFETY_MARGIN = 100
+    available_length = TELEGRAM_MESSAGE_LIMIT - len(debt_info) - SAFETY_MARGIN - 1
+    
+    # Форматируем план с учётом лимита
+    plan_text = await format_payment_plan(plan_items, max_length=available_length)
+    
+    # Собираем итоговое сообщение
+    text = debt_info + "\n" + plan_text
     
     keyboard = get_debt_detail_keyboard(debt_id, is_debtor, is_closed)
     
