@@ -23,8 +23,8 @@ async def format_debt_info(debt: Debt, balance: Optional[Decimal] = None) -> str
     status_emoji = "🔒" if debt.status == 'closed' else "🟢"
     status_text = "Закрыт" if debt.status == 'closed' else "Активен"
     
-    text = f"{status_emoji} <b>Долг #{debt.id}</b>\n"
-    text += f"Статус: {status_text}\n"
+    text = f"{status_emoji} <b>{debt.name}</b>\n"
+    text += f"ID: {debt.id} | Статус: {status_text}\n"
     text += f"Сумма долга: {debt.principal_amount:,.2f} {debt.currency}\n"
     
     if balance is not None:
@@ -126,8 +126,8 @@ def format_debt_list_item(debt: Debt, index: int, is_debtor: bool) -> str:
     role = "Должник" if is_debtor else "Кредитор"
     status = "🔒 Закрыт" if debt.status == 'closed' else "🟢 Активен"
     
-    text = f"{index}. <b>Долг #{debt.id}</b> ({role})\n"
-    text += f"   {status} | {debt.principal_amount:,.2f} {debt.currency}\n"
+    text = f"{index}. <b>{debt.name}</b> ({role})\n"
+    text += f"   ID: {debt.id} | {status} | {debt.principal_amount:,.2f} {debt.currency}\n"
     
     return text
 
