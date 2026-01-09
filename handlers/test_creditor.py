@@ -165,6 +165,9 @@ async def show_debt_as_creditor(update: Update, debt_id: int, debt) -> None:
     payment_service = PaymentService()
     balance = await payment_service.calculate_balance(debt_id)
     
+    # Get actual payments for marking completed ones
+    actual_payments = await payment_service.get_payments_by_debt(debt_id, include_deleted=False)
+    
     planner_service = PlannerService()
     plan_items = await planner_service.calculate_payment_plan(debt, balance)
     
@@ -179,8 +182,8 @@ async def show_debt_as_creditor(update: Update, debt_id: int, debt) -> None:
     SAFETY_MARGIN = 100
     available_length = TELEGRAM_MESSAGE_LIMIT - len(debt_info) - SAFETY_MARGIN - 1
     
-    # Format payment plan with limit
-    plan_text = await format_payment_plan(plan_items, max_length=available_length)
+    # Format payment plan with limit and actual payments
+    plan_text = await format_payment_plan(plan_items, max_length=available_length, actual_payments=actual_payments)
     
     # Build final message
     text = debt_info + "\n" + plan_text

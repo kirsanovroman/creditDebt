@@ -104,6 +104,9 @@ async def debt_detail_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     payment_service = PaymentService()
     balance = await payment_service.calculate_balance(debt_id)
     
+    # Получаем реальные платежи для отметки выполненных
+    actual_payments = await payment_service.get_payments_by_debt(debt_id, include_deleted=False)
+    
     planner_service = PlannerService()
     plan_items = await planner_service.calculate_payment_plan(debt, balance)
     
@@ -118,8 +121,8 @@ async def debt_detail_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     SAFETY_MARGIN = 100
     available_length = TELEGRAM_MESSAGE_LIMIT - len(debt_info) - SAFETY_MARGIN - 1
     
-    # Форматируем план с учётом лимита
-    plan_text = await format_payment_plan(plan_items, max_length=available_length)
+    # Форматируем план с учётом лимита и реальных платежей
+    plan_text = await format_payment_plan(plan_items, max_length=available_length, actual_payments=actual_payments)
     
     # Собираем итоговое сообщение
     text = debt_info + "\n" + plan_text
