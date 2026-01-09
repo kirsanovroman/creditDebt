@@ -250,6 +250,47 @@ async def payment_add_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         else:
             logger.warning(f"update.message is None. update type: {type(update)}, update: {update}")
         
+        # Отправляем уведомление кредитору (если есть)
+        try:
+            debt_service = DebtService()
+            debt = await debt_service.get_debt_by_id(debt_id)
+            
+            if debt and debt.creditor_user_id:
+                # Получаем Telegram ID кредитора
+                creditor_db_user = await user_repo.get_by_id(debt.creditor_user_id)
+                if creditor_db_user:
+                    creditor_tg_id = creditor_db_user.tg_user_id
+                    
+                    # Формируем уведомление для кредитора
+                    notification_text = (
+                        f"💰 <b>Новый платёж по долгу</b>\n\n"
+                        f"<b>{debt.name}</b>\n"
+                        f"Сумма: {payment.amount:,.2f} {debt.currency}\n"
+                        f"Дата: {payment_date.strftime('%d.%m.%Y')}\n"
+                        f"ID долга: {debt_id}"
+                    )
+                    
+                    # Кнопка для перехода к долгу
+                    notification_keyboard = InlineKeyboardMarkup([
+                        [InlineKeyboardButton("📋 Перейти к долгу", callback_data=f"debt:{debt_id}")]
+                    ])
+                    
+                    # Отправляем уведомление кредитору
+                    try:
+                        await context.bot.send_message(
+                            chat_id=creditor_tg_id,
+                            text=notification_text,
+                            reply_markup=notification_keyboard,
+                            parse_mode='HTML'
+                        )
+                        logger.info(f"Notification sent to creditor: tg_id={creditor_tg_id}, debt_id={debt_id}")
+                    except Exception as e:
+                        # Логируем ошибку, но не падаем (кредитор мог заблокировать бота)
+                        logger.warning(f"Failed to send notification to creditor (tg_id={creditor_tg_id}): {e}")
+        except Exception as e:
+            # Логируем ошибку, но не падаем
+            logger.error(f"Error sending creditor notification: {e}", exc_info=True)
+        
         return -1
     
     except PermissionError:

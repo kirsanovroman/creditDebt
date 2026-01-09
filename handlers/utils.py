@@ -3,8 +3,9 @@
 """
 from decimal import Decimal
 from datetime import date
-from typing import Optional
+from typing import Optional, List
 from models.debt import Debt
+from models.payment import Payment
 from services.payment_service import PaymentService
 from services.planner_service import PaymentPlanItem
 
@@ -47,7 +48,8 @@ async def format_debt_info(debt: Debt, balance: Optional[Decimal] = None) -> str
 
 async def format_payment_plan(
     plan_items: list[PaymentPlanItem],
-    max_length: Optional[int] = None
+    max_length: Optional[int] = None,
+    actual_payments: Optional[List[Payment]] = None
 ) -> str:
     """
     Форматирует план погашения для отображения.
@@ -58,6 +60,7 @@ async def format_payment_plan(
     Args:
         plan_items: Список элементов плана
         max_length: Максимальная длина текста (опционально)
+        actual_payments: Список реальных платежей для отметки выполненных (опционально)
     
     Returns:
         Отформатированная строка
@@ -71,15 +74,45 @@ async def format_payment_plan(
     SHOW_FIRST = 5  # Показывать первые N платежей
     SHOW_LAST = 1   # Показывать последний N платежей
     
-    def format_item(item: PaymentPlanItem, index: int) -> str:
-        """Форматирует один элемент плана."""
-        final_mark = " (финальный)" if item.is_final else ""
-        return f"{index}. {item.payment_date.strftime('%d.%m.%Y')} — {item.amount:,.2f}{final_mark}\n"
+    def is_payment_made_for_month(plan_date: date, payments: List[Payment]) -> bool:
+        """
+        Проверяет, есть ли платеж в том же месяце, что и дата плана.
+        
+        Args:
+            plan_date: Дата из плана
+            payments: Список реальных платежей
+        
+        Returns:
+            True, если есть платеж в том же месяце
+        """
+        if not payments:
+            return False
+        
+        for payment in payments:
+            # Проверяем, что платеж не удален
+            if payment.is_deleted():
+                continue
+            
+            # Проверяем, что платеж в том же месяце и году
+            if (payment.payment_date.year == plan_date.year and 
+                payment.payment_date.month == plan_date.month):
+                return True
+        
+        return False
     
-    # Форматируем все платежи
+    def format_item(item: PaymentPlanItem, index: int, is_paid: bool = False) -> str:
+        """Форматирует один элемент плана."""
+        paid_mark = " ✅" if is_paid else ""
+        final_mark = " (финальный)" if item.is_final else ""
+        return f"{index}. {item.payment_date.strftime('%d.%m.%Y')} — {item.amount:,.2f}{paid_mark}{final_mark}\n"
+    
+    # Форматируем все платежи с проверкой выполненных
     all_lines = []
     for i, item in enumerate(plan_items, 1):
-        all_lines.append(format_item(item, i))
+        is_paid = False
+        if actual_payments:
+            is_paid = is_payment_made_for_month(item.payment_date, actual_payments)
+        all_lines.append(format_item(item, i, is_paid))
     
     full_text = header + "".join(all_lines)
     
@@ -94,14 +127,20 @@ async def format_payment_plan(
     # Форматируем начало (первые SHOW_FIRST платежей)
     start_lines = []
     for i in range(SHOW_FIRST):
-        start_lines.append(format_item(plan_items[i], i + 1))
+        is_paid = False
+        if actual_payments:
+            is_paid = is_payment_made_for_month(plan_items[i].payment_date, actual_payments)
+        start_lines.append(format_item(plan_items[i], i + 1, is_paid))
     
     # Форматируем конец (последние SHOW_LAST платежей)
     skipped_count = len(plan_items) - SHOW_FIRST - SHOW_LAST
     end_lines = []
     for i in range(SHOW_LAST):
         idx = len(plan_items) - SHOW_LAST + i
-        end_lines.append(format_item(plan_items[idx], idx + 1))
+        is_paid = False
+        if actual_payments:
+            is_paid = is_payment_made_for_month(plan_items[idx].payment_date, actual_payments)
+        end_lines.append(format_item(plan_items[idx], idx + 1, is_paid))
     
     # Собираем результат с пропуском
     result = header + "".join(start_lines)
@@ -115,7 +154,10 @@ async def format_payment_plan(
         current_length = len(header)
         
         for i in range(len(plan_items)):
-            line = format_item(plan_items[i], i + 1)
+            is_paid = False
+            if actual_payments:
+                is_paid = is_payment_made_for_month(plan_items[i].payment_date, actual_payments)
+            line = format_item(plan_items[i], i + 1, is_paid)
             if current_length + len(line) > max_length:
                 break
             result_lines.append(line)
