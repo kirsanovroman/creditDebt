@@ -57,6 +57,7 @@ from handlers.invites import (
     invite_create_callback,
     invite_accept_command
 )
+from handlers.test_creditor import test_creditor_command
 
 
 # Состояния для ConversationHandler
@@ -162,6 +163,9 @@ def main() -> None:
     
     # Обработчик команды /help
     application.add_handler(CommandHandler("help", help_callback))
+    
+    # Handler for test command /test_creditor (testing only)
+    application.add_handler(CommandHandler("test_creditor", test_creditor_command))
     
     # ConversationHandler для создания долга
     debt_create_conv = ConversationHandler(
