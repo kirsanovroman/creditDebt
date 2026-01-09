@@ -9,9 +9,19 @@ from dotenv import load_dotenv
 
 # Определяем путь к .env файлу (в директории проекта)
 env_path = Path(__file__).parent / '.env'
+env_local_path = Path(__file__).parent / '.env.local'
 
-# Загружаем переменные окружения из .env файла
-load_dotenv(dotenv_path=env_path)
+# Загружаем переменные окружения: сначала .env, потом .env.local (если существует)
+# .env.local имеет приоритет и перезаписывает значения из .env
+# Используем override=True для обоих, чтобы перезаписать системные переменные окружения
+if env_local_path.exists():
+    # Если .env.local существует, загружаем его (он имеет приоритет)
+    load_dotenv(dotenv_path=env_local_path, override=True)
+    # Затем загружаем .env для остальных переменных (если они не заданы в .env.local)
+    load_dotenv(dotenv_path=env_path, override=False)
+else:
+    # Если .env.local не существует, загружаем только .env
+    load_dotenv(dotenv_path=env_path, override=True)
 
 
 class Config:
