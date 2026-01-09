@@ -9,7 +9,11 @@ from telegram.ext import ContextTypes
 from repositories.user_repository import UserRepository
 from repositories.debt_repository import DebtRepository
 from services.debt_service import DebtService
+from services.payment_service import PaymentService
+from services.planner_service import PlannerService
 from services.audit_service import AuditService
+from handlers.utils import format_debt_info, format_payment_plan
+from handlers.keyboards import get_debt_detail_keyboard
 from database import Database
 
 logger = logging.getLogger(__name__)
@@ -71,12 +75,10 @@ async def test_creditor_command(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text(f"❌ Долг #{debt_id} не найден.")
         return
     
-    # Check if user is already creditor
+    # Check if user is already creditor - if yes, just show creditor view
     if debt.creditor_user_id == db_user.id:
-        await update.message.reply_text(
-            f"ℹ️ Вы уже являетесь кредитором долга #{debt_id}.\n\n"
-            f"Название: {debt.name}"
-        )
+        # User is already creditor - show debt view as creditor
+        await show_debt_as_creditor(update, debt_id, debt)
         return
     
     # Save state before change for audit
@@ -130,13 +132,63 @@ async def test_creditor_command(update: Update, context: ContextTypes.DEFAULT_TY
     finally:
         await pool.release(conn)
     
-    # Success message
+    # Get updated debt info (now user is creditor)
+    updated_debt = await debt_service.get_debt_by_id(debt_id)
+    if updated_debt is None:
+        await update.message.reply_text(
+            f"✅ Вы успешно назначены кредитором долга #{debt_id}!\n\n"
+            f"Используйте меню 'Мои долги' для просмотра."
+        )
+        return
+    
+    # Send success message
     await update.message.reply_text(
         f"✅ Вы успешно назначены кредитором долга #{debt_id}!\n\n"
-        f"📋 <b>Информация о долге:</b>\n"
-        f"Название: {debt.name}\n"
-        f"Сумма: {debt.principal_amount:,.2f} {debt.currency}\n"
-        f"Статус: {'Закрыт' if debt.status == 'closed' else 'Активен'}\n\n"
-        f"Теперь вы можете просматривать этот долг как кредитор через меню 'Мои долги'.",
+        f"📋 <b>Просмотр долга как кредитор:</b>",
         parse_mode='HTML'
     )
+    
+    # Show debt as creditor
+    await show_debt_as_creditor(update, debt_id, updated_debt)
+
+
+async def show_debt_as_creditor(update: Update, debt_id: int, debt) -> None:
+    """
+    Shows debt details from creditor perspective.
+    
+    Args:
+        update: Telegram update
+        debt_id: ID of the debt
+        debt: Debt object
+    """
+    # Calculate balance and payment plan
+    payment_service = PaymentService()
+    balance = await payment_service.calculate_balance(debt_id)
+    
+    planner_service = PlannerService()
+    plan_items = await planner_service.calculate_payment_plan(debt, balance)
+    
+    # Format debt information
+    debt_info = await format_debt_info(debt, balance)
+    
+    # Calculate available length for payment plan
+    # Telegram limit: 4096 characters
+    # Safety margin: 100 characters
+    # Separator: 1 character (\n)
+    TELEGRAM_MESSAGE_LIMIT = 4096
+    SAFETY_MARGIN = 100
+    available_length = TELEGRAM_MESSAGE_LIMIT - len(debt_info) - SAFETY_MARGIN - 1
+    
+    # Format payment plan with limit
+    plan_text = await format_payment_plan(plan_items, max_length=available_length)
+    
+    # Build final message
+    text = debt_info + "\n" + plan_text
+    
+    # Show debt as creditor (is_debtor=False) - no editing buttons, only view
+    is_debtor = False  # Force creditor view
+    is_closed = debt.status == 'closed'
+    keyboard = get_debt_detail_keyboard(debt_id, is_debtor, is_closed)
+    
+    # Show debt details with creditor view (no debtor actions available)
+    await update.message.reply_text(text, reply_markup=keyboard, parse_mode='HTML')
