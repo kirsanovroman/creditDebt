@@ -79,23 +79,31 @@ async def payments_list_callback(update: Update, context: ContextTypes.DEFAULT_T
 async def payment_add_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Начинает процесс добавления платежа."""
     query = update.callback_query
-    if query:
-        await query.answer()
+    
+    logger.info(f"payment_add_start called: query={query is not None}, callback_data={query.data if query else None}")
     
     user = update.effective_user
     if user is None:
+        logger.warning("payment_add_start: user is None")
+        if query:
+            await query.answer("Ошибка: не удалось определить пользователя", show_alert=True)
         return -1
     
     # Извлекаем debt_id из callback_data
-    callback_data = query.data if query else ""
-    try:
-        debt_id = int(callback_data.split(':')[2])
-    except (IndexError, ValueError):
-        if query:
-            await query.answer("Ошибка: неверный ID долга", show_alert=True)
+    if not query:
+        logger.error("payment_add_start: query is None")
         return -1
     
-    # Проверяем доступ перед началом процесса
+    callback_data = query.data
+    try:
+        debt_id = int(callback_data.split(':')[2])
+        logger.info(f"payment_add_start: debt_id={debt_id}")
+    except (IndexError, ValueError) as e:
+        logger.error(f"payment_add_start: error parsing debt_id from '{callback_data}': {e}")
+        await query.answer("Ошибка: неверный ID долга", show_alert=True)
+        return -1
+    
+    # Проверяем доступ и права перед началом процесса
     user_repo = UserRepository()
     db_user = await user_repo.create_or_get_by_tg_id(user.id)
     
@@ -104,6 +112,28 @@ async def payment_add_start(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         if query:
             await query.answer("Нет доступа к этому долгу", show_alert=True)
         return -1
+    
+    # Проверяем, что пользователь является должником (только должник может добавлять платежи)
+    debt = await debt_service.get_debt_by_id(debt_id)
+    if debt is None:
+        if query:
+            await query.answer("Долг не найден", show_alert=True)
+        return -1
+    
+    if debt.debtor_user_id != db_user.id:
+        if query:
+            await query.answer("Только должник может добавлять платежи", show_alert=True)
+        return -1
+    
+    # Проверяем, что долг не закрыт
+    if debt.status == 'closed':
+        if query:
+            await query.answer("Нельзя добавлять платежи к закрытому долгу", show_alert=True)
+        return -1
+    
+    # Все проверки пройдены - отвечаем на callback
+    await query.answer()
+    logger.info(f"payment_add_start: all checks passed, starting conversation for debt_id={debt_id}")
     
     # Сохраняем debt_id в контексте
     context.user_data['payment_add_debt_id'] = debt_id
@@ -117,8 +147,12 @@ async def payment_add_start(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     
     if query and query.message:
         await query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
+        logger.info(f"payment_add_start: message edited for debt_id={debt_id}")
     elif update.message:
         await update.message.reply_text(text, reply_markup=keyboard, parse_mode='HTML')
+        logger.info(f"payment_add_start: message sent for debt_id={debt_id}")
+    else:
+        logger.error(f"payment_add_start: no message to edit/send for debt_id={debt_id}")
     
     return PAYMENT_AMOUNT
 
